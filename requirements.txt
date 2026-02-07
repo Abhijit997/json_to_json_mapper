@@ -1,0 +1,5 @@
+# JSON Mapper Requirements
+# This project uses only Python standard library modules
+# No external dependencies required
+
+# Python 3.8+
