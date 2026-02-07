@@ -1,0 +1,84 @@
+{
+  "order_header": [
+    {
+      "order_id": "ORD-88294-X",
+      "order_date": "2023-10-27T14:30:00Z",
+      "currency": "USD",
+      "order_status": "CREATED",
+      "subtotal": 475.0,
+      "tax_total": 35.6,
+      "shipping_total": 15.0,
+      "discount_total": -50.0,
+      "grand_total": 475.6
+    }
+  ],
+  "order_item": [
+    {
+      "line_number": 1,
+      "sku": "SKU-SHIRT-BLUE-L",
+      "product_name": "Premium Cotton Shirt - Blue/Large",
+      "quantity": 3,
+      "unit_price": 55.0,
+      "line_total": 165.0,
+      "item_type": "SINGLE"
+    },
+    {
+      "line_number": 2,
+      "sku": "SKU-BNDL-GYM-SET",
+      "product_name": "Fitness Starter Pack",
+      "quantity": 2,
+      "unit_price": 120.0,
+      "line_total": 240.0,
+      "item_type": "BUNDLE"
+    },
+    {
+      "line_number": 3,
+      "sku": "SKU-WATCH-BLK",
+      "product_name": "Midnight Edition Analog Watch",
+      "quantity": 1,
+      "unit_price": 70.0,
+      "line_total": 70.0,
+      "item_type": "SINGLE"
+    }
+  ],
+  "order_item_component": [
+    {
+      "line_number": 2,
+      "sku": "SKU-BNDL-GYM-SET",
+      "component_sku": "SKU-MAT-01",
+      "component_name": "Eco-Friendly Yoga Mat",
+      "quantity": 2,
+      "internal_cost_allocation": 70.0
+    },
+    {
+      "line_number": 2,
+      "sku": "SKU-BNDL-GYM-SET",
+      "component_sku": "SKU-BTL-05",
+      "component_name": "Insulated Water Bottle",
+      "quantity": 2,
+      "internal_cost_allocation": 50.0
+    }
+  ],
+  "payment": [
+    {
+      "payment_method": "CREDIT_CARD",
+      "amount": 425.6,
+      "payment_status": "AUTHORIZED",
+      "card_type": "MASTERCARD",
+      "last_four": "1234",
+      "auth_code": "AUTH998822",
+      "coupon_code": null,
+      "promotion_id": null
+    },
+    {
+      "payment_method": "DISCOUNT_COUPON",
+      "amount": 50.0,
+      "payment_status": "APPLIED",
+      "card_type": null,
+      "last_four": null,
+      "auth_code": null,
+      "coupon_code": "BOGO50",
+      "promotion_id": "BUNDLE_PROMO_2023"
+    }
+  ]
+}

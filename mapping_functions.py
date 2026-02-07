@@ -1,0 +1,440 @@
+import hashlib
+import json
+from datetime import datetime, timezone
+import os
+import re
+from typing import Any, Dict, List
+
+
+# Utility functions
+def validate_mapping(mapping_dict: dict) -> str:
+    """Validate mapping structure."""
+    if not isinstance(mapping_dict, dict):
+        return "Invalid mapping: input should be a dictionary"
+    if "filter" not in mapping_dict or "mapping" not in mapping_dict:
+        return "Invalid mapping: 'filter' and 'mapping' keys are required"
+    if not isinstance(mapping_dict["filter"], list) or not isinstance(mapping_dict["mapping"], list):
+        return "Invalid mapping: 'filter' should be a list and 'mapping' should be a list"
+    if len(mapping_dict["filter"]) == 0 or len(mapping_dict["mapping"]) == 0:
+        return "Invalid mapping: 'filter' and 'mapping' cannot be empty"
+    for mapping in mapping_dict["mapping"]:
+        if not isinstance(mapping, dict):
+            return "Invalid mapping: each mapping should be a dictionary"
+        if "table_name" not in mapping or "columns" not in mapping:
+            return "Invalid mapping: 'mapping' should contain 'table_name' and 'columns'"
+        if not isinstance(mapping["table_name"], str) or not isinstance(mapping["columns"], list):
+            return "Invalid mapping: 'table_name' should be a string and 'columns' should be a list"
+        for col in mapping["columns"]:
+            if not all(k in col for k in ("name", "datatype", "mapping")):
+                return "Invalid mapping: Each column should have 'name', 'datatype', and 'mapping'"
+    return "OK"
+
+
+def get_value_from_payload(mapping: str, payload: Dict[str, Any]) -> Any:
+    """
+    Extract value from JSON based on mapping logic.
+    Supports:
+    - Dot notation for nested keys
+    - Array filtering like [type='PreAuth'] or [0]
+    - Functions: concat(), rm_extra_spaces(), split(), substring(), int(), decimal(), date(), timestamp(), lower(), upper()
+    """
+    if payload is None or mapping is None:
+        return None
+
+    # Handle quoted literals
+    if (mapping.startswith("'") and mapping.endswith("'")) or (mapping.startswith('"') and mapping.endswith('"')):
+        return mapping[1:-1]
+
+    # Handle numeric literals, including optional leading + or -
+    if isinstance(mapping, str) and re.fullmatch(r'[+-]?\d+(\.\d+)?', mapping.strip()):
+        return float(mapping) if '.' in mapping else int(mapping)
+
+    # Find positions of special characters
+    dot_pos = mapping.find('.')
+    sq_bracket_pos = mapping.find('[')
+    round_bracket_pos = mapping.find('(')
+
+    if dot_pos == -1: dot_pos = len(mapping) + 1
+    if sq_bracket_pos == -1: sq_bracket_pos = len(mapping) + 1
+    if round_bracket_pos == -1: round_bracket_pos = len(mapping) + 1
+
+    # Dot notation
+    if dot_pos < sq_bracket_pos and dot_pos < round_bracket_pos:
+        if isinstance(payload, dict):
+            return get_value_from_payload(mapping[dot_pos + 1:], payload.get(mapping[:dot_pos], None))
+        elif isinstance(payload, list):
+            return [get_value_from_payload(mapping[dot_pos + 1:], item.get(mapping[:dot_pos], None)) for item in payload if isinstance(item, dict)]
+        else:
+            return None
+    
+    # Function handling
+    if round_bracket_pos < dot_pos and round_bracket_pos < sq_bracket_pos:
+        func_name = mapping[:round_bracket_pos].strip()
+        func_end_pos = mapping.rfind(')', round_bracket_pos)
+        func_args = mapping[round_bracket_pos + 1:func_end_pos]
+
+        # Split arguments safely
+        args = []
+        stack, start = [], 0
+        for i, ch in enumerate(func_args):
+            if ch == '(':
+                stack.append('(')
+            elif ch == ')':
+                if stack: stack.pop()
+            elif ch == ',' and not stack:
+                args.append(func_args[start:i].strip())
+                start = i + 1
+        args.append(func_args[start:].strip())
+
+        # Process functions
+		# Input: concat('Hello', ' ', 'World ')
+        # Output: 'Hello World '
+        if func_name == 'concat':
+            return ''.join(str(get_value_from_payload(arg, payload) or '') for arg in args)
+
+		# Input: rm_extra_spaces('  Hello   World  ')
+        # Output: 'Hello World'
+        if func_name == 'rm_extra_spaces':
+            val = get_value_from_payload(args[0], payload)
+            return ' '.join(val.split()) if isinstance(val, str) else None
+
+		# Input: split('Hello/World', '/'), split('Hello/World', '/')[1]
+        # Output: ['Hello', 'World'], 'World'
+        if func_name == 'split':
+            val = get_value_from_payload(args[0], payload)
+            delimiter = get_value_from_payload(args[1], payload)
+            if isinstance(val, str) and isinstance(delimiter, str):
+                parts = val.split(delimiter)
+                rest = mapping[func_end_pos + 1:].strip()
+                if rest.startswith('[') and rest.endswith(']'):
+                    idx = int(rest[1:-1])
+                    return parts[idx] if 0 <= idx < len(parts) else None
+                return parts
+        
+        # Input: len('Hello World')
+        # Output: 11
+        if func_name == 'len':
+            val = get_value_from_payload(args[0], payload)
+            return len(val) if isinstance(val, (str, list, dict)) else None
+        
+        # Input sum(123, 456), sum(123.45, 456.78), sum(123, -456)
+        # Output: 579, 580.23, -333
+        if func_name == 'sum':
+            val1 = get_value_from_payload(args[0], payload)
+            val2 = get_value_from_payload(args[1], payload)
+
+            def is_int_like(v):
+                if isinstance(v, int):
+                    return True
+                if isinstance(v, str):
+                    return re.fullmatch(r'[+-]?\d+', v.strip()) is not None
+                return False
+            try:
+                if is_int_like(val1) and is_int_like(val2):
+                    return int(val1) + int(val2)
+                # Fall back to float sum
+                return float(val1) + float(val2)
+            except (TypeError, ValueError):
+                return None
+
+		# Input: substring('HelloWorld', 0, 5), substring('HelloWorld', 5), substring('HelloWorld', ,3)
+        # Output: 'Hello', 'World', 'Hel'
+        if func_name == 'substring':
+            val = get_value_from_payload(args[0], payload)
+            if isinstance(val, str):
+                start = int(get_value_from_payload(args[1], payload) or 0)
+                length = int(get_value_from_payload(args[2], payload) or len(val))
+                if start + length > len(val):
+                    return val[start:]
+                else:
+                    return val[start:start + length]
+        
+        # Input: int('123')
+        # Output: 123
+        if func_name == 'int':
+            val = get_value_from_payload(args[0], payload)
+            try:
+                return int(val)
+            except (TypeError, ValueError):
+                return None
+        
+        # Input: decimal('123.45')
+        # Output: 123.45
+        if func_name == 'decimal':
+            val = get_value_from_payload(args[0], payload)
+            try:
+                return float(val)
+            except (TypeError, ValueError):
+                return None
+
+		# Input: date('2024-06-15T12:34:56'), date('2024-06-15')
+        # Output: '2024-06-15', '2024-06-15'
+        if func_name == 'date':
+            val = get_value_from_payload(args[0], payload)
+            if isinstance(val, str):
+                try:
+                    return datetime.fromisoformat(val.replace('Z', '')).astimezone(timezone.utc).strftime('%Y-%m-%d')
+                except ValueError:
+                    return None
+
+		# Input: timestamp('2024-06-15T12:34:56Z'), timestamp('2024-06-15 12:34:56')
+        # Output: '2024-06-15 12:34:56', '2024-06-15 12:34:56'
+        if func_name == 'timestamp':
+            val = get_value_from_payload(args[0], payload)
+            if isinstance(val, str):
+                try:
+                    dt = datetime.fromisoformat(val.replace('Z', ''))
+                    return dt.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    return None
+
+		# Input: lower('Hello World')
+        # Output: 'hello world'
+        if func_name == 'lower':
+            val = get_value_from_payload(args[0], payload)
+            return val.lower() if isinstance(val, str) else None
+        
+        # Input: upper('Hello World')
+        # Output: 'HELLO WORLD'
+        if func_name == 'upper':
+            val = get_value_from_payload(args[0], payload)
+            return val.upper() if isinstance(val, str) else None
+        
+        # Input: nvl(arg1, arg2, ...)
+        # Output: first non-null argument
+        if func_name == 'nvl':
+            for arg in args:
+                val = get_value_from_payload(arg, payload)
+                if val is not None:
+                    return val
+            return None
+
+
+    # Array filter or index
+    if sq_bracket_pos < dot_pos and sq_bracket_pos < round_bracket_pos:
+        base = mapping[:sq_bracket_pos]
+        filter = mapping[sq_bracket_pos + 1:mapping.find(']', sq_bracket_pos)]
+        rest = mapping[mapping.find(']', sq_bracket_pos) + 1:]
+        if isinstance(payload, dict):
+            arr = get_value_from_payload(base, payload)
+            if isinstance(arr, list):
+                if filter == '': # when no filter provided return all items
+                    return_arr = []
+                    for arr_element in arr:
+                        if rest == '' or rest is None:
+                            return_arr.extend(arr_element)
+                        else:
+                            inside_mapping = get_value_from_payload(rest.lstrip('.'), arr_element)
+                            if inside_mapping is not None:
+                                return_arr.extend(inside_mapping)
+                    return return_arr
+                elif '=' in filter:  # filter by = (returns all matches as array or single match as value)
+                    key, expected = filter.split('=', 1)
+                    expected = expected.strip("'\"")
+                    matches = []
+                    for item in arr:
+                        payload_value = get_value_from_payload(key.strip(), item)
+                        if isinstance(item, dict) and isinstance(payload_value, str) and payload_value == expected:
+                            if rest == '' or rest is None:
+                                matches.append(item)
+                            else:
+                                match_value = get_value_from_payload(rest.lstrip('.'), item)
+                                if match_value is not None:
+                                    matches.append(match_value)
+                    if len(matches) == 0:
+                        return None
+                    elif len(matches) == 1:
+                        return matches[0]
+                    else:
+                        return json.dumps(matches)
+                elif filter.isdigit():  # filter by index
+                    idx = int(filter)
+                    if rest == '' or rest is None:
+                        return arr[idx] if 0 <= idx < len(arr) else None
+                    else:
+                        return get_value_from_payload(rest.lstrip('.'), arr[idx]) if 0 <= idx < len(arr) else None
+
+    if isinstance(payload, dict):
+        return payload.get(mapping, None)
+    elif isinstance(payload, list):
+        if len(payload) > 1:
+            return [item.get(mapping, None) for item in payload if isinstance(item, dict)]
+        else:
+            return payload[0].get(mapping, None) if isinstance(payload[0], dict) else None
+    elif isinstance(payload, str):
+        return payload
+    else:
+        return None
+            
+
+def process_mappings_local(payload_dict: dict, local_path: str) -> dict:
+    """
+    Go through each mapping JSON file from local path and create dictionary of mapped tables from payload_dict.
+    Returned dictionary will have 'error' key storing all files that had issues.
+    
+    Args:
+        payload_dict: The payload to map
+        local_path: Local directory path to read mapping files from
+    """
+    mapped_tables = {}
+    
+    try:
+        # Read from local directory
+        if not os.path.exists(local_path):
+            return {'error': {'mapping_file': 'N/A', 'error': f'Local path {local_path} does not exist'}}
+        
+        if not os.path.isdir(local_path):
+            return {'error': {'mapping_file': 'N/A', 'error': f'Local path {local_path} is not a directory'}}
+        
+        all_files = [f for f in os.listdir(local_path) if os.path.isfile(os.path.join(local_path, f))]
+        json_files_found = []
+        
+        # Process each JSON file
+        for file_name in all_files:
+            if file_name.endswith('.json'):
+                json_files_found.append(file_name)
+                try:
+                    # Read the file from local path
+                    file_path = os.path.join(local_path, file_name)
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        file_content = f.read()
+                    mapping_dict = json.loads(file_content)
+                    file_key = file_name  # Use filename for error reporting
+                    
+                    # Process mapping
+                    result = _process_single_mapping(mapping_dict, payload_dict, file_key, mapped_tables)
+                    if result:
+                        mapped_tables = result
+                        
+                except Exception as file_err:
+                    import traceback
+                    mapped_tables['error'] = {'mapping_file': file_name, 'error': str(file_err), 'traceback': traceback.format_exc()}
+        
+        # Check if any JSON files were found
+        if len(json_files_found) == 0:
+            return {'error': {'mapping_file': 'N/A', 'error': f'No .json files found in {local_path}. Found {len(all_files)} total files.'}}
+            
+    except Exception as e:
+        import traceback
+        mapped_tables['error'] = {'mapping_file': 'Local Access', 'error': str(e), 'traceback': traceback.format_exc()}
+    
+    return mapped_tables
+
+
+def _process_single_mapping(mapping_dict: dict, payload_dict: dict, file_key: str, mapped_tables: dict) -> dict:
+    """
+    Process a single mapping file and update the mapped_tables dictionary.
+    
+    Args:
+        mapping_dict: The loaded mapping configuration
+        payload_dict: The payload to map
+        file_key: The file identifier (S3 key or local filename)
+        mapped_tables: The current mapped tables dictionary
+        
+    Returns:
+        Updated mapped_tables dictionary, or None if error occurred
+    """
+    validation_result = validate_mapping(mapping_dict)
+
+    if validation_result == 'OK':
+        # Check if current mapping_file has any mapping from payload_dict
+        # Skip mapping if filter attribute doesn't exist (returns None) or filter doesn't match
+        if not any(
+            bool(re.match(pattern.get("value", ""), payload_value))
+            for pattern in mapping_dict.get('filter', [])
+            if (payload_value := get_value_from_payload(pattern.get("attribute", ""), payload_dict)) is not None
+        ):
+            return mapped_tables  # Skip this mapping_file if no filter matches or attribute missing
+
+        # Map for each table in mapping_dict
+        for mapping in mapping_dict['mapping']:
+            table_name = mapping['table_name']
+            columns = mapping['columns']
+            mapped_rows = []
+
+            # Handle flattened mappings
+            if "flatten" in mapping:
+                flatten_path = mapping["flatten"]
+                base_array = get_value_from_payload(flatten_path, payload_dict)
+                hash_array = []
+                        
+                if isinstance(base_array, list):
+                    for element in base_array:
+                        if isinstance(element, dict):
+                            hash_object = hashlib.sha256(json.dumps(element, sort_keys=True).encode('utf-8'))
+                            element_hash = hash_object.hexdigest()
+                            hash_array.append(element_hash)
+
+                    mapped_rows = [dict() for _ in base_array]
+                    for col in columns:
+                        if "flattened" in col:
+                            # Full flattening
+                            if col["flattened"] == "full":
+                                for i, item in enumerate(base_array):
+                                    mapped_rows[i][col["name"]] = get_value_from_payload(col["mapping"], item)
+                            # Partial flattening which is a subset of flattened path
+                            else:
+                                partial_flatten_path = col["flattened"]
+                                if flatten_path.startswith(partial_flatten_path):
+                                    relative_path = flatten_path[len(partial_flatten_path):].lstrip('.[]')
+                                    outer_arr = get_value_from_payload(partial_flatten_path, payload_dict)
+
+                                    hash_to_outer_element_map = {}
+                                    for outer_element in outer_arr:
+                                        base_array_in_outer_element = get_value_from_payload(relative_path, outer_element)
+                                        if base_array_in_outer_element is not None and isinstance(base_array_in_outer_element, list) and len(base_array_in_outer_element) > 0:
+                                            for element in base_array_in_outer_element:
+                                                hash_object = hashlib.sha256(json.dumps(element, sort_keys=True).encode('utf-8'))
+                                                current_hash = hash_object.hexdigest()
+                                                hash_to_outer_element_map[current_hash] = outer_element
+                                    
+                                    for i in range(len(base_array)):
+                                        current_hash = hash_array[i]
+                                        outer_element = hash_to_outer_element_map.get(current_hash, None)
+                                        if outer_element is not None and isinstance(outer_element, dict):
+                                            mapped_rows[i][col["name"]] = get_value_from_payload(col["mapping"], outer_element)
+                                        else:
+                                            mapped_rows[i][col["name"]] = None
+                                else:
+                                    mapped_rows[i][col["name"]] = None
+                        else:
+                            for i in range(len(base_array)):
+                                mapped_rows[i][col["name"]] = get_value_from_payload(col["mapping"], payload_dict)
+                if len(mapped_rows) > 0:
+                    mapped_tables[table_name] = mapped_rows
+            else:
+                mapped_row = {}
+                for col in columns:
+                    mapped_row[col["name"]] = get_value_from_payload(col["mapping"], payload_dict)
+                mapped_tables[table_name] = [mapped_row]
+        
+        return mapped_tables
+    else:
+        mapped_tables['error'] = {'mapping_file': file_key, 'error': validation_result}
+        return None
+
+def generate_insert_sql(table_dict: Dict[str, Any], catalog: str, schema: str) -> List[str]:
+    """
+    Generate INSERT SQL statements for each table in table_dict based on config_dict.
+    """
+    insert_statements = []
+    for table_name, rows in table_dict.items():
+        if table_name == 'error':
+            continue  # Skip errors
+
+        full_table_name = f'"{catalog}".{schema}.{table_name}'
+        if isinstance(rows, list):
+            for row in rows:
+                if isinstance(row, dict):
+                    columns, values = '', ''
+                    for col, val in row.items():
+                        if val is None:
+                            continue
+                        columns += f'"{col}",'
+                        if isinstance(val, str):
+                            values += f"'{val.replace("'", "''")}',"
+                        else:
+                            values += f"{str(val)},"
+                    insert_statements.append(f"INSERT INTO {full_table_name} ({columns.rstrip(',')}) VALUES ({values.rstrip(',')});")
+    return insert_statements
+    

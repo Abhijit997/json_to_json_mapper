@@ -1,0 +1,80 @@
+{
+  "order_header": {
+    "order_id": "ORD-88294-X",
+    "order_date": "2023-10-27T14:30:00Z",
+    "order_lifecycle_event": "order_created",
+    "currency": "USD",
+    "order_status": "CREATED",
+    "totals": {
+      "subtotal": 475.00,
+      "tax_total": 35.60,
+      "shipping_total": 15.00,
+      "discount_total": -50.00,
+      "grand_total": 475.60
+    }
+  },
+  "order_items": [
+    {
+      "line_number": 1,
+      "sku": "SKU-SHIRT-BLUE-L",
+      "product_name": "Premium Cotton Shirt - Blue/Large",
+      "quantity": 3,
+      "unit_price": 55.00,
+      "line_total": 165.00,
+      "item_type": "SINGLE"
+    },
+    {
+      "line_number": 2,
+      "sku": "SKU-BNDL-GYM-SET",
+      "product_name": "Fitness Starter Pack",
+      "quantity": 2,
+      "unit_price": 120.00,
+      "line_total": 240.00,
+      "item_type": "BUNDLE",
+      "order_item_components": [
+        {
+          "component_sku": "SKU-MAT-01",
+          "component_name": "Eco-Friendly Yoga Mat",
+          "quantity": 2,
+          "internal_cost_allocation": 70.00
+        },
+        {
+          "component_sku": "SKU-BTL-05",
+          "component_name": "Insulated Water Bottle",
+          "quantity": 2,
+          "internal_cost_allocation": 50.00
+        }
+      ]
+    },
+    {
+      "line_number": 3,
+      "sku": "SKU-WATCH-BLK",
+      "product_name": "Midnight Edition Analog Watch",
+      "quantity": 1,
+      "unit_price": 70.00,
+      "line_total": 70.00,
+      "item_type": "SINGLE"
+    }
+  ],
+  "payments": [
+    {
+      "payment_method": "CREDIT_CARD",
+      "payment_status": "AUTHORIZED",
+      "amount": 425.60,
+      "card_details": {
+        "card_type": "MASTERCARD",
+        "last_four": "1234",
+        "auth_code": "AUTH998822"
+      }
+    },
+    {
+      "payment_method": "DISCOUNT_COUPON",
+      "payment_status": "APPLIED",
+      "amount": 50.00,
+      "coupon_details": {
+        "coupon_code": "BOGO50",
+        "promotion_id": "BUNDLE_PROMO_2023"
+      }
+    }
+  ]
+}

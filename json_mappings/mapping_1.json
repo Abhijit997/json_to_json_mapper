@@ -1,0 +1,64 @@
+{
+    "filter": [
+        {
+            "attribute": "order_header.order_lifecycle_event",
+            "value": "order_created"
+        }
+    ],
+    "mapping": [
+        {
+            "table_name": "order_header",
+            "columns": [
+                { "name": "order_id", "datatype": "VARCHAR", "mapping": "order_header.order_id" },
+                { "name": "order_date", "datatype": "TIMESTAMP", "mapping": "order_header.order_date" },
+                { "name": "currency", "datatype": "VARCHAR", "mapping": "order_header.currency" },
+                { "name": "order_status", "datatype": "VARCHAR", "mapping": "order_header.order_status" },
+                { "name": "subtotal", "datatype": "DECIMAL(18,2)", "mapping": "order_header.totals.subtotal" },
+                { "name": "tax_total", "datatype": "DECIMAL(18,2)", "mapping": "order_header.totals.tax_total" },
+                { "name": "shipping_total", "datatype": "DECIMAL(18,2)", "mapping": "order_header.totals.shipping_total" },
+                { "name": "discount_total", "datatype": "DECIMAL(18,2)", "mapping": "order_header.totals.discount_total" },
+                { "name": "grand_total", "datatype": "DECIMAL(18,2)", "mapping": "order_header.totals.grand_total" }
+            ]
+        },
+        {
+            "table_name": "order_item",
+            "flatten": "order_items",
+            "columns": [
+                { "name": "line_number", "datatype": "INT", "flattened": "full", "mapping": "line_number" },
+                { "name": "sku", "datatype": "VARCHAR", "flattened": "full", "mapping": "sku" },
+                { "name": "product_name", "datatype": "VARCHAR", "flattened": "full", "mapping": "product_name" },
+                { "name": "quantity", "datatype": "INT", "flattened": "full", "mapping": "quantity" },
+                { "name": "unit_price", "datatype": "DECIMAL(18,2)", "flattened": "full", "mapping": "unit_price" },
+                { "name": "line_total", "datatype": "DECIMAL(18,2)", "flattened": "full", "mapping": "line_total" },
+                { "name": "item_type", "datatype": "VARCHAR", "flattened": "full", "mapping": "item_type" }
+            ]
+        },
+        {
+            "table_name": "order_item_component",
+            "flatten": "order_items[].order_item_components",
+            "columns": [
+                { "name": "line_number", "datatype": "INT", "flattened": "order_items", "mapping": "line_number" },
+                { "name": "sku", "datatype": "VARCHAR", "flattened": "order_items", "mapping": "sku" },
+                
+                { "name": "component_sku", "datatype": "VARCHAR", "flattened": "full", "mapping": "component_sku" },
+                { "name": "component_name", "datatype": "VARCHAR", "flattened": "full", "mapping": "component_name" },
+                { "name": "quantity", "datatype": "INT", "flattened": "full", "mapping": "quantity" },
+                { "name": "internal_cost_allocation", "datatype": "DECIMAL(18,2)", "flattened": "full", "mapping": "internal_cost_allocation" }
+            ]
+        },
+        {
+            "table_name": "payment",
+            "flatten": "payments",
+            "columns": [
+                { "name": "payment_method", "datatype": "VARCHAR", "flattened": "full", "mapping": "payment_method" },
+                { "name": "amount", "datatype": "DECIMAL(18,2)", "flattened": "full", "mapping": "amount" },
+                { "name": "payment_status", "datatype": "VARCHAR", "flattened": "full", "mapping": "payment_status" },
+                { "name": "card_type", "datatype": "VARCHAR", "flattened": "full", "mapping": "card_details.card_type" },
+                { "name": "last_four", "datatype": "VARCHAR", "flattened": "full", "mapping": "card_details.last_four" },
+                { "name": "auth_code", "datatype": "VARCHAR", "flattened": "full", "mapping": "card_details.auth_code" },
+                { "name": "coupon_code", "datatype": "VARCHAR", "flattened": "full", "mapping": "coupon_details.coupon_code"},
+                { "name": "promotion_id", "datatype": "VARCHAR", "flattened": "full", "mapping": "coupon_details.promotion_id" }
+            ]
+        }
+    ]
+}
