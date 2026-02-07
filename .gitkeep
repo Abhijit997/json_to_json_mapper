@@ -1,0 +1,24 @@
+# Git Keep - Files to track
+
+# Python source files
+*.py
+
+# Configuration and mapping files
+*.json
+
+# Documentation
+README.md
+LICENSE
+*.md
+
+# Requirements
+requirements.txt
+*.txt
+
+# Project structure
+json_mappings/
+json_input/
+
+# Version control
+.gitignore
+.gitkeep
