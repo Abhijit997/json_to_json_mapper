@@ -5,15 +5,23 @@
       "order_date": "2023-10-27T14:30:00Z",
       "currency": "USD",
       "order_status": "CREATED",
+      "order_lifecycle_event": "order_created",
       "subtotal": 475.0,
       "tax_total": 35.6,
       "shipping_total": 15.0,
       "discount_total": -50.0,
-      "grand_total": 475.6
+      "grand_total": 475.6,
+      "customer_id": "CUST-4052",
+      "first_name": "Alex",
+      "last_name": "Smith",
+      "full_name": "Alex Smith",
+      "email": "alex.smith@example.com",
+      "phone": "+1-555-010-9988"
     }
   ],
   "order_item": [
     {
+      "order_id": "ORD-88294-X",
       "line_number": 1,
       "sku": "SKU-SHIRT-BLUE-L",
       "product_name": "Premium Cotton Shirt - Blue/Large",
@@ -23,6 +31,7 @@
       "item_type": "SINGLE"
     },
     {
+      "order_id": "ORD-88294-X",
       "line_number": 2,
       "sku": "SKU-BNDL-GYM-SET",
       "product_name": "Fitness Starter Pack",
@@ -32,6 +41,7 @@
       "item_type": "BUNDLE"
     },
     {
+      "order_id": "ORD-88294-X",
       "line_number": 3,
       "sku": "SKU-WATCH-BLK",
       "product_name": "Midnight Edition Analog Watch",
@@ -43,6 +53,7 @@
   ],
   "order_item_component": [
     {
+      "order_id": "ORD-88294-X",
       "line_number": 2,
       "sku": "SKU-BNDL-GYM-SET",
       "component_sku": "SKU-MAT-01",
@@ -51,6 +62,7 @@
       "internal_cost_allocation": 70.0
     },
     {
+      "order_id": "ORD-88294-X",
       "line_number": 2,
       "sku": "SKU-BNDL-GYM-SET",
       "component_sku": "SKU-BTL-05",

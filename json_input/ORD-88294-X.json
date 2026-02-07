@@ -5,6 +5,13 @@
     "order_lifecycle_event": "order_created",
     "currency": "USD",
     "order_status": "CREATED",
+    "customer": {
+      "customer_id": "CUST-4052",
+      "first_name": "Alex",
+      "last_name": "Smith",
+      "email": "alex.smith@example.com",
+      "phone": "+1-555-010-9988"
+    },
     "totals": {
       "subtotal": 475.00,
       "tax_total": 35.60,
@@ -76,5 +83,14 @@
         "promotion_id": "BUNDLE_PROMO_2023"
       }
     }
-  ]
+  ],
+  "shipping_address": {
+    "first_name": "Alex",
+    "last_name": "Smith",
+    "street": "123 Maple Avenue",
+    "city": "Springfield",
+    "state": "IL",
+    "zip_code": "62704",
+    "country": "US"
+  }
 }

@@ -422,7 +422,7 @@ def generate_insert_sql(table_dict: Dict[str, Any], catalog: str, schema: str) -
         if table_name == 'error':
             continue  # Skip errors
 
-        full_table_name = f'"{catalog}".{schema}.{table_name}'
+        full_table_name = f'"{catalog}"."{schema}"."{table_name}"'
         if isinstance(rows, list):
             for row in rows:
                 if isinstance(row, dict):
