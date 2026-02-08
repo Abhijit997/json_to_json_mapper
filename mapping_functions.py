@@ -408,21 +408,26 @@ def _process_single_mapping(mapping_dict: dict, payload_dict: dict, file_key: st
                     mapped_row[col["name"]] = get_value_from_payload(col["mapping"], payload_dict)
                 mapped_tables[table_name] = [mapped_row]
         
-        return mapped_tables
     else:
         mapped_tables['error'] = {'mapping_file': file_key, 'error': validation_result}
-        return None
+    
+    return mapped_tables
 
-def generate_insert_sql(table_dict: Dict[str, Any], catalog: str, schema: str) -> List[str]:
+def generate_insert_sql(table_dict: Dict[str, Any], catalog: str = None, schema: str = None) -> List[str]:
     """
-    Generate INSERT SQL statements for each table in table_dict based on config_dict.
+    Generate INSERT SQL statements for each table in table_dict.
     """
     insert_statements = []
     for table_name, rows in table_dict.items():
         if table_name == 'error':
             continue  # Skip errors
 
-        full_table_name = f'"{catalog}"."{schema}"."{table_name}"'
+        if catalog is not None and schema is not None:
+            full_table_name = f'"{catalog}"."{schema}"."{table_name}"'
+        elif schema is not None:
+            full_table_name = f'"{schema}"."{table_name}"'
+        else:
+            full_table_name = f'"{table_name}"'
         if isinstance(rows, list):
             for row in rows:
                 if isinstance(row, dict):
