@@ -92,5 +92,17 @@
       "coupon_code": "BOGO50",
       "promotion_id": "BUNDLE_PROMO_2023"
     }
+  ],
+  "order_shipping": [
+    {
+      "order_id": "ORD-88294-X",
+      "first_name": "Alex",
+      "last_name": "Smith",
+      "street": "123 Maple Avenue",
+      "city": "Springfield",
+      "state": "IL",
+      "postal_code": "62704",
+      "country": "US"
+    }
   ]
 }

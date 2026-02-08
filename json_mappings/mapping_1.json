@@ -72,6 +72,19 @@
                 { "name": "coupon_code", "datatype": "VARCHAR", "flattened": "full", "mapping": "coupon_details.coupon_code"},
                 { "name": "promotion_id", "datatype": "VARCHAR", "flattened": "full", "mapping": "coupon_details.promotion_id" }
             ]
+        },
+        {
+            "table_name": "order_shipping",
+            "columns": [
+                { "name": "order_id", "datatype": "VARCHAR", "mapping": "order_header.order_id" },
+                { "name": "first_name", "datatype": "VARCHAR", "mapping": "shipping_address.first_name" },
+                { "name": "last_name", "datatype": "VARCHAR", "mapping": "shipping_address.last_name" },
+                { "name": "street", "datatype": "VARCHAR", "mapping": "shipping_address.street" },
+                { "name": "city", "datatype": "VARCHAR", "mapping": "shipping_address.city" },
+                { "name": "state", "datatype": "VARCHAR", "mapping": "shipping_address.state" },
+                { "name": "postal_code", "datatype": "VARCHAR", "mapping": "shipping_address.zip_code" },
+                { "name": "country", "datatype": "VARCHAR", "mapping": "shipping_address.country" }
+            ]
         }
     ]
 }
