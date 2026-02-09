@@ -3,7 +3,7 @@ import json
 from datetime import datetime, timezone
 import os
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 
 # Utility functions
@@ -413,33 +413,64 @@ def _process_single_mapping(mapping_dict: dict, payload_dict: dict, file_key: st
     
     return mapped_tables
 
-def generate_insert_sql(table_dict: Dict[str, Any], catalog: str = None, schema: str = None) -> List[str]:
+
+def generate_insert_sql(
+    table_dict: Dict[str, Any], 
+    catalog: str = None, 
+    schema: str = None, 
+    ignore_empty_columns: bool = True
+) -> List[str]:
     """
-    Generate INSERT SQL statements for each table in table_dict.
+    Generate batched INSERT SQL statements.
+
+    :param table_dict: Dictionary where keys are table names and values are lists of row dictionaries.
+    :param catalog: Optional catalog name to prefix table names.
+    :param schema: Optional schema name to prefix table names.
+    :param ignore_empty_columns: If True, columns with None values are omitted from the INSERT.
+                                 If False, None values are explicitly inserted as NULL.
     """
     insert_statements = []
-    for table_name, rows in table_dict.items():
-        if table_name == 'error':
-            continue  # Skip errors
+    table_prefix = f'"{catalog}"."{schema}".' if catalog and schema else (f'"{schema}".' if schema else "")
 
-        if catalog is not None and schema is not None:
-            full_table_name = f'"{catalog}"."{schema}"."{table_name}"'
-        elif schema is not None:
-            full_table_name = f'"{schema}"."{table_name}"'
-        else:
-            full_table_name = f'"{table_name}"'
-        if isinstance(rows, list):
-            for row in rows:
-                if isinstance(row, dict):
-                    columns, values = '', ''
-                    for col, val in row.items():
-                        if val is None:
-                            continue
-                        columns += f'"{col}",'
-                        if isinstance(val, str):
-                            values += f"'{val.replace("'", "''")}',"
-                        else:
-                            values += f"{str(val)},"
-                    insert_statements.append(f"INSERT INTO {full_table_name} ({columns.rstrip(',')}) VALUES ({values.rstrip(',')});")
+    for table_name, rows in table_dict.items():
+        if table_name == 'error' or not isinstance(rows, list):
+            continue
+
+        full_table_name = f'{table_prefix}"{table_name}"'
+        groups: Dict[Tuple[str, ...], List[str]] = {}
+
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            
+            # Determine which columns to include based on the flag
+            if ignore_empty_columns:
+                active_cols = sorted([col for col, val in row.items() if val is not None])
+            else:
+                active_cols = sorted(row.keys())
+            
+            if not active_cols:
+                continue
+            
+            col_key = tuple(active_cols)
+            formatted_vals = []
+            
+            for col in active_cols:
+                val = row.get(col)
+                if val is None:
+                    formatted_vals.append("NULL")
+                elif isinstance(val, str):
+                    formatted_vals.append(f"'{val.replace("'", "''")}'")
+                else:
+                    formatted_vals.append(str(val))
+            
+            row_values_sql = f"({', '.join(formatted_vals)})"
+            groups.setdefault(col_key, []).append(row_values_sql)
+
+        # Construct statements
+        for cols, values_list in groups.items():
+            col_names_sql = ", ".join([f'"{c}"' for c in cols])
+            all_values_sql = ",\n    ".join(values_list)
+            insert_statements.append(f"INSERT INTO {full_table_name} ({col_names_sql})\nVALUES\n    {all_values_sql};")
+
     return insert_statements
-    

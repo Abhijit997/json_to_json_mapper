@@ -1,9 +1,21 @@
-INSERT INTO "my_catalog"."my_schema"."order_header" ("order_id","order_date","currency","order_status","order_lifecycle_event","subtotal","tax_total","shipping_total","discount_total","grand_total","customer_id","first_name","last_name","full_name","email","phone") VALUES ('ORD-88294-X','2023-10-27T14:30:00Z','USD','CREATED','order_created',475.0,35.6,15.0,-50.0,475.6,'CUST-4052','Alex','Smith','Alex Smith','alex.smith@example.com','+1-555-010-9988');
-INSERT INTO "my_catalog"."my_schema"."order_item" ("order_id","line_number","sku","product_name","quantity","unit_price","line_total","item_type") VALUES ('ORD-88294-X',1,'SKU-SHIRT-BLUE-L','Premium Cotton Shirt - Blue/Large',3,55.0,165.0,'SINGLE');
-INSERT INTO "my_catalog"."my_schema"."order_item" ("order_id","line_number","sku","product_name","quantity","unit_price","line_total","item_type") VALUES ('ORD-88294-X',2,'SKU-BNDL-GYM-SET','Fitness Starter Pack',2,120.0,240.0,'BUNDLE');
-INSERT INTO "my_catalog"."my_schema"."order_item" ("order_id","line_number","sku","product_name","quantity","unit_price","line_total","item_type") VALUES ('ORD-88294-X',3,'SKU-WATCH-BLK','Midnight Edition Analog Watch',1,70.0,70.0,'SINGLE');
-INSERT INTO "my_catalog"."my_schema"."order_item_component" ("order_id","line_number","sku","component_sku","component_name","quantity","internal_cost_allocation") VALUES ('ORD-88294-X',2,'SKU-BNDL-GYM-SET','SKU-MAT-01','Eco-Friendly Yoga Mat',2,70.0);
-INSERT INTO "my_catalog"."my_schema"."order_item_component" ("order_id","line_number","sku","component_sku","component_name","quantity","internal_cost_allocation") VALUES ('ORD-88294-X',2,'SKU-BNDL-GYM-SET','SKU-BTL-05','Insulated Water Bottle',2,50.0);
-INSERT INTO "my_catalog"."my_schema"."payment" ("payment_method","amount","payment_status","card_type","last_four","auth_code") VALUES ('CREDIT_CARD',425.6,'AUTHORIZED','MASTERCARD','1234','AUTH998822');
-INSERT INTO "my_catalog"."my_schema"."payment" ("payment_method","amount","payment_status","coupon_code","promotion_id") VALUES ('DISCOUNT_COUPON',50.0,'APPLIED','BOGO50','BUNDLE_PROMO_2023');
-INSERT INTO "my_catalog"."my_schema"."order_shipping" ("order_id","first_name","last_name","street","city","state","postal_code","country") VALUES ('ORD-88294-X','Alex','Smith','123 Maple Avenue','Springfield','IL','62704','US');
+INSERT INTO "my_catalog"."my_schema"."order_header" ("currency", "customer_id", "discount_total", "email", "first_name", "full_name", "grand_total", "last_name", "order_date", "order_id", "order_lifecycle_event", "order_status", "phone", "shipping_total", "subtotal", "tax_total")
+VALUES
+    ('USD', 'CUST-4052', -50.0, 'alex.smith@example.com', 'Alex', 'Alex Smith', 475.6, 'Smith', '2023-10-27T14:30:00Z', 'ORD-88294-X', 'order_created', 'CREATED', '+1-555-010-9988', 15.0, 475.0, 35.6);
+INSERT INTO "my_catalog"."my_schema"."order_item" ("item_type", "line_number", "line_total", "order_id", "product_name", "quantity", "sku", "unit_price")
+VALUES
+    ('SINGLE', 1, 165.0, 'ORD-88294-X', 'Premium Cotton Shirt - Blue/Large', 3, 'SKU-SHIRT-BLUE-L', 55.0),
+    ('BUNDLE', 2, 240.0, 'ORD-88294-X', 'Fitness Starter Pack', 2, 'SKU-BNDL-GYM-SET', 120.0),
+    ('SINGLE', 3, 70.0, 'ORD-88294-X', 'Midnight Edition Analog Watch', 1, 'SKU-WATCH-BLK', 70.0);
+INSERT INTO "my_catalog"."my_schema"."order_item_component" ("component_name", "component_sku", "internal_cost_allocation", "line_number", "order_id", "quantity", "sku")
+VALUES
+    ('Eco-Friendly Yoga Mat', 'SKU-MAT-01', 70.0, 2, 'ORD-88294-X', 2, 'SKU-BNDL-GYM-SET'),
+    ('Insulated Water Bottle', 'SKU-BTL-05', 50.0, 2, 'ORD-88294-X', 2, 'SKU-BNDL-GYM-SET');
+INSERT INTO "my_catalog"."my_schema"."payment" ("amount", "auth_code", "card_type", "last_four", "payment_method", "payment_status")
+VALUES
+    (425.6, 'AUTH998822', 'MASTERCARD', '1234', 'CREDIT_CARD', 'AUTHORIZED');
+INSERT INTO "my_catalog"."my_schema"."payment" ("amount", "coupon_code", "payment_method", "payment_status", "promotion_id")
+VALUES
+    (50.0, 'BOGO50', 'DISCOUNT_COUPON', 'APPLIED', 'BUNDLE_PROMO_2023');
+INSERT INTO "my_catalog"."my_schema"."order_shipping" ("city", "country", "first_name", "last_name", "order_id", "postal_code", "state", "street")
+VALUES
+    ('Springfield', 'US', 'Alex', 'Smith', 'ORD-88294-X', '62704', 'IL', '123 Maple Avenue');
