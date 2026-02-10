@@ -18,6 +18,8 @@ requirements.txt
 # Project structure
 json_mappings/
 json_input/
+json_output/
+sql_output/
 
 # Version control
 .gitignore
