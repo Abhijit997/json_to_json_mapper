@@ -265,6 +265,153 @@ def get_value_from_payload(mapping: str, payload: Dict[str, Any]) -> Any:
         return payload
     else:
         return None
+
+def validate_datatype(source_value, mapping_datatype):
+    """
+    Validate and convert source_value to the specified datatype.
+    
+    Supports: VARCHAR, CHAR, TEXT, INT, SMALLINT, BIGINT, FLOAT, DOUBLE, REAL, 
+              DECIMAL, NUMERIC, DATE, TIME, TIMESTAMP, BOOLEAN
+    
+    Returns:
+        Tuple of (validated_value, error_map) where error_map is None if valid, or a dict with error details if invalid.
+    """
+    if source_value is None:
+        return None, None
+    
+    datatype_upper = mapping_datatype.upper()
+    
+    try:
+        # VARCHAR - variable-length string
+        if datatype_upper.startswith('VARCHAR'):
+            return str(source_value), None
+        
+        # CHAR - fixed-length string
+        if datatype_upper.startswith('CHAR'):
+            char_val = str(source_value)
+            # Extract length if specified (e.g., CHAR(4))
+            if '(' in datatype_upper:
+                length = int(datatype_upper.split('(')[1].split(')')[0])
+                if len(char_val) > length:
+                    return char_val[:length], {'datatype': mapping_datatype, 'value': source_value, 'error': f'CHAR length exceeds {length}'}
+            return char_val, None
+        
+        # TEXT - large text
+        if datatype_upper == 'TEXT':
+            return str(source_value), None
+        
+        # INT - 32-bit integer
+        if datatype_upper == 'INT':
+            int_val = int(source_value)
+            if int_val < -2147483648 or int_val > 2147483647:
+                return None, {'datatype': mapping_datatype, 'value': source_value, 'error': 'INT value out of range'}
+            return int_val, None
+        
+        # SMALLINT - 16-bit integer
+        if datatype_upper == 'SMALLINT':
+            int_val = int(source_value)
+            if int_val < -32768 or int_val > 32767:
+                return None, {'datatype': mapping_datatype, 'value': source_value, 'error': 'SMALLINT value out of range'}
+            return int_val, None
+        
+        # BIGINT - 64-bit integer
+        if datatype_upper == 'BIGINT':
+            int_val = int(source_value)
+            if int_val < -9223372036854775808 or int_val > 9223372036854775807:
+                return None, {'datatype': mapping_datatype, 'value': source_value, 'error': 'BIGINT value out of range'}
+            return int_val, None
+        
+        # FLOAT - single-precision floating-point
+        if datatype_upper == 'FLOAT':
+            return float(source_value), None
+        
+        # DOUBLE - double-precision floating-point
+        if datatype_upper == 'DOUBLE':
+            return float(source_value), None
+        
+        # REAL - real/single-precision number
+        if datatype_upper == 'REAL':
+            return float(source_value), None
+        
+        # DECIMAL - fixed-point decimal (e.g., DECIMAL(18,2))
+        if datatype_upper.startswith('DECIMAL'):
+            decimal_val = float(source_value)
+            # Round to specified scale if provided
+            if '(' in datatype_upper:
+                precision_scale = datatype_upper.split('(')[1].split(')')[0]
+                if ',' in precision_scale:
+                    precision, scale = map(int, precision_scale.split(','))
+                    # Round to the specified scale
+                    decimal_val = round(decimal_val, scale)
+            return decimal_val, None
+        
+        # NUMERIC - fixed-point numeric (e.g., NUMERIC(15,2))
+        if datatype_upper.startswith('NUMERIC'):
+            numeric_val = float(source_value)
+            # Round to specified scale if provided
+            if '(' in datatype_upper:
+                precision_scale = datatype_upper.split('(')[1].split(')')[0]
+                if ',' in precision_scale:
+                    precision, scale = map(int, precision_scale.split(','))
+                    # Round to the specified scale
+                    numeric_val = round(numeric_val, scale)
+            return numeric_val, None
+        
+        # DATE - date only (YYYY-MM-DD)
+        if datatype_upper == 'DATE':
+            val_str = str(source_value)
+            try:
+                # Split by 'T' or space to extract date part
+                date_part = val_str.split('T')[0] if 'T' in val_str else val_str.split()[0]
+                parsed_date = datetime.fromisoformat(date_part).date()
+                return parsed_date.isoformat(), None
+            except (ValueError, AttributeError, IndexError):
+                return None, {'datatype': mapping_datatype, 'value': source_value, 'error': 'Invalid DATE format (expected YYYY-MM-DD)'}
+        
+        # TIME - time only (HH:MM:SS)
+        if datatype_upper == 'TIME':
+            val_str = str(source_value)
+            try:
+                # Split by 'T' or space to extract time part (remove date if present)
+                time_part = val_str.split('T')[-1] if 'T' in val_str else val_str.split()[-1]
+                
+                # Parse time in HH:MM:SS format
+                parts = time_part.split(':')
+                if len(parts) != 3:
+                    raise ValueError("Invalid TIME format")
+                hour, minute, second = int(parts[0]), int(parts[1]), int(parts[2])
+                if hour < 0 or hour > 23 or minute < 0 or minute > 59 or second < 0 or second > 59:
+                    raise ValueError("TIME values out of range")
+                return f"{hour:02d}:{minute:02d}:{second:02d}", None
+            except (ValueError, AttributeError, IndexError):
+                return None, {'datatype': mapping_datatype, 'value': source_value, 'error': 'Invalid TIME format (expected HH:MM:SS)'}
+        
+        # TIMESTAMP - date and time with timezone
+        if datatype_upper == 'TIMESTAMP':
+            val_str = str(source_value)
+            try:
+                parsed_dt = datetime.fromisoformat(val_str.replace('Z', '+00:00'))
+                return parsed_dt.isoformat(), None
+            except ValueError:
+                return None, {'datatype': mapping_datatype, 'value': source_value, 'error': 'Invalid TIMESTAMP format (expected ISO 8601)'}
+        
+        # BOOLEAN - true/false values
+        if datatype_upper == 'BOOLEAN':
+            if isinstance(source_value, bool):
+                return source_value, None
+            val_str = str(source_value).lower().strip()
+            if val_str in ('true', '1', 'yes', 'y', 'on'):
+                return True, None
+            elif val_str in ('false', '0', 'no', 'n', 'off'):
+                return False, None
+            else:
+                return None, {'datatype': mapping_datatype, 'value': source_value, 'error': 'Invalid BOOLEAN value'}
+        
+        # If datatype is not recognized, return error
+        return None, {'datatype': mapping_datatype, 'value': source_value, 'error': f'Unknown datatype: {mapping_datatype}'}
+    
+    except (ValueError, TypeError) as e:
+        return None, {'datatype': mapping_datatype, 'value': source_value, 'error': f'Validation failed, {str(e)}'}
             
 
 def process_mappings_local(payload_dict: dict, local_path: str) -> dict:
@@ -308,7 +455,7 @@ def process_mappings_local(payload_dict: dict, local_path: str) -> dict:
                         
                 except Exception as file_err:
                     import traceback
-                    mapped_tables['error'] = {'mapping_file': file_name, 'error': str(file_err), 'traceback': traceback.format_exc()}
+                    mapped_tables.setdefault('error', []).append({'mapping_file': file_name, 'error': str(file_err), 'traceback': traceback.format_exc()})
         
         # Check if any JSON files were found
         if len(json_files_found) == 0:
@@ -316,7 +463,7 @@ def process_mappings_local(payload_dict: dict, local_path: str) -> dict:
             
     except Exception as e:
         import traceback
-        mapped_tables['error'] = {'mapping_file': 'Local Access', 'error': str(e), 'traceback': traceback.format_exc()}
+        mapped_tables.setdefault('error', []).append({'error': str(e), 'traceback': traceback.format_exc()})
     
     return mapped_tables
 
@@ -371,7 +518,14 @@ def _process_single_mapping(mapping_dict: dict, payload_dict: dict, file_key: st
                             # Full flattening
                             if col["flattened"] == "full":
                                 for i, item in enumerate(base_array):
-                                    mapped_rows[i][col["name"]] = get_value_from_payload(col["mapping"], item)
+                                    validated_value, error_map = validate_datatype(
+                                        get_value_from_payload(col["mapping"], item),
+                                        col["datatype"]
+                                    )
+                                    mapped_rows[i][col["name"]] = validated_value
+                                    if error_map is not None:
+                                        mapped_tables.setdefault('error', []).append(error_map)
+
                             # Partial flattening which is a subset of flattened path
                             else:
                                 partial_flatten_path = col["flattened"]
@@ -392,14 +546,27 @@ def _process_single_mapping(mapping_dict: dict, payload_dict: dict, file_key: st
                                         current_hash = hash_array[i]
                                         outer_element = hash_to_outer_element_map.get(current_hash, None)
                                         if outer_element is not None and isinstance(outer_element, dict):
-                                            mapped_rows[i][col["name"]] = get_value_from_payload(col["mapping"], outer_element)
+                                            validated_value, error_map = validate_datatype(
+                                                get_value_from_payload(col["mapping"], outer_element),
+                                                col["datatype"]
+                                            )
+                                            mapped_rows[i][col["name"]] = validated_value
+                                            if error_map is not None:
+                                                mapped_tables.setdefault('error', []).append(error_map)
                                         else:
                                             mapped_rows[i][col["name"]] = None
                                 else:
                                     mapped_rows[i][col["name"]] = None
                         else:
                             for i in range(len(base_array)):
-                                mapped_rows[i][col["name"]] = get_value_from_payload(col["mapping"], payload_dict)
+                                validated_value, error_map = validate_datatype(
+                                    get_value_from_payload(col["mapping"], payload_dict),
+                                    col["datatype"]
+                                )
+                                mapped_rows[i][col["name"]] = validated_value
+                                if error_map is not None:
+                                    mapped_tables.setdefault('error', []).append(error_map)
+
                 if len(mapped_rows) > 0:
                     mapped_tables[table_name] = mapped_rows
             else:
@@ -409,7 +576,7 @@ def _process_single_mapping(mapping_dict: dict, payload_dict: dict, file_key: st
                 mapped_tables[table_name] = [mapped_row]
         
     else:
-        mapped_tables['error'] = {'mapping_file': file_key, 'error': validation_result}
+        mapped_tables.setdefault('error', []).append({'mapping_file': file_key, 'error': validation_result})
     
     return mapped_tables
 
