@@ -572,7 +572,13 @@ def _process_single_mapping(mapping_dict: dict, payload_dict: dict, file_key: st
             else:
                 mapped_row = {}
                 for col in columns:
-                    mapped_row[col["name"]] = get_value_from_payload(col["mapping"], payload_dict)
+                    validated_value, error_map = validate_datatype(
+                        get_value_from_payload(col["mapping"], payload_dict),
+                        col["datatype"]
+                    )
+                    mapped_row[col["name"]] = validated_value
+                    if error_map is not None:
+                        mapped_tables.setdefault('error', []).append(error_map)
                 mapped_tables[table_name] = [mapped_row]
         
     else:
